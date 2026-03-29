@@ -3,20 +3,18 @@ import { motion } from 'framer-motion';
 import { Trophy, Clock, PartyPopper, AlertCircle, Music, Medal } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const socketUrl = import.meta.env.VITE_WS_URL || "wss://wedding-quiz-2026.onrender.com/ws/quiz/";
-const socket = new WebSocket(socketUrl);
+// 1. Definiamo l'URL una sola volta fuori dal componente.
+// Vite caricherà la variabile da Render, altrimenti userà il fallback locale.
+const SOCKET_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws/quiz/";
 
 function App() {
   const [fase, setFase] = useState('LOGIN'); 
   const [nickname, setNickname] = useState('');
   const [errore, setErrore] = useState('');
-  const [socket, setSocket] = useState(null);
+  const [socket, setSocket] = useState(null); // Qui salviamo la connessione attiva
   const [domanda, setDomanda] = useState(null);
-  
-  // STATI DEL TIMER AGGIORNATI
   const [timer, setTimer] = useState(60);
-  const [endTime, setEndTime] = useState(null); // NUOVO: Memorizza l'ora esatta di fine
-  
+  const [endTime, setEndTime] = useState(null); 
   const [classifica, setClassifica] = useState([]);
   const [giocatoriConnessi, setGiocatoriConnessi] = useState(0);
   const [progresso, setProgresso] = useState({ numero: 0, totale: 0 });
@@ -26,14 +24,18 @@ function App() {
     let ws;
 
     const connectWebSocket = () => {
-      ws = new WebSocket(WS_URL);
+      // Usiamo SOCKET_URL definito sopra
+      ws = new WebSocket(SOCKET_URL);
       
       ws.onopen = () => {
+        console.log("Connesso al server WebSocket");
+        setSocket(ws);
+        
+        // Se l'utente era già loggato (refresh pagina), rientriamo automaticamente
         const nomeSalvato = localStorage.getItem('wedding_quiz_nickname');
         if (nomeSalvato) {
           setNickname(nomeSalvato);
           ws.send(JSON.stringify({ type: 'join', nickname: nomeSalvato }));
-          setFase('ATTESA');
         }
       };
 
@@ -41,19 +43,16 @@ function App() {
         const data = JSON.parse(event.data);
         const utenteRegistrato = localStorage.getItem('wedding_quiz_nickname');
         
-        // Se non hai ancora inserito il nome, ignora i comandi della regia!
-        if (!utenteRegistrato) {
-            return; 
-        }
+        // Se non siamo registrati, accettiamo solo la conferma del join
+        if (!utenteRegistrato && data.type !== 'join_confirm') return;
 
-        if (data.type === 'prossima_domanda') {
+        if (data.type === 'join_confirm') {
+          setFase('ATTESA');
+        } else if (data.type === 'prossima_domanda') {
           setDomanda(data);
-          
-          // IMPOSTIAMO LA SCADENZA ESATTA (Ora attuale + 60 secondi)
           const scadenza = Date.now() + 60000;
           setEndTime(scadenza);
           setTimer(60);
-          
           setProgresso({ numero: data.numero, totale: data.totale });
           setFase('DOMANDA');
         } else if (data.type === 'classifica_parziale') {
@@ -66,7 +65,6 @@ function App() {
           } else {
             confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#d97706', '#fbbf24', '#ffffff'] });
           }
-          
         } else if (data.type === 'schermata_preparazione') {
           setGiocatoriConnessi(data.giocatori);
           setFase('PREPARAZIONE');
@@ -80,43 +78,42 @@ function App() {
         }
       };
 
-      ws.onclose = () => setTimeout(connectWebSocket, 2000);
-      setSocket(ws);
+      ws.onclose = () => {
+        console.log("Connessione persa. Tentativo di riconnessione...");
+        setSocket(null);
+        setTimeout(connectWebSocket, 2000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("Errore WebSocket:", err);
+      };
     };
 
     connectWebSocket();
     return () => { if (ws) ws.close(); };
   }, []);
 
-  // --- NUOVO USE-EFFECT PER IL TIMER ANTI-BLOCCO ---
+  // Timer anti-blocco
   useEffect(() => {
     let interval;
-    
-    // Il timer gira solo se siamo in queste due fasi e se esiste un endTime
     if ((fase === 'DOMANDA' || fase === 'RISPOSTA_DATA') && endTime) {
-      // Usiamo 200ms invece di 1000ms per rendere la barra fluidissima e super reattiva
       interval = setInterval(() => {
         const now = Date.now();
         const msRimanenti = endTime - now;
         const secondiRimanenti = Math.ceil(msRimanenti / 1000);
 
         if (msRimanenti > 0) {
-          // Se scende sotto il secondo precedente, aggiorna l'UI
           if (secondiRimanenti !== timer) {
             setTimer(secondiRimanenti);
           }
         } else {
-          // TEMPO SCADUTO!
           setTimer(0);
           setFase('ATTESA_CLASSIFICA');
           clearInterval(interval);
         }
       }, 200); 
     }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => { if (interval) clearInterval(interval); };
   }, [fase, endTime, timer]);
 
   const handleJoin = (e) => {
@@ -124,25 +121,25 @@ function App() {
     if (!nickname.trim()) { setErrore("Ehi! Non hai inserito il nome! 😅"); return; }
     if (nickname.trim().length < 2) { setErrore("Troppo corto, non fare il timido! 🕵️‍♂️"); return; }
     
-    setErrore('');
-    // SALVA IL NOME: Da questo momento in poi ascolterà la regia!
-    localStorage.setItem('wedding_quiz_nickname', nickname.trim());
-    
     if (socket && socket.readyState === WebSocket.OPEN) {
+      setErrore('');
+      localStorage.setItem('wedding_quiz_nickname', nickname.trim());
       socket.send(JSON.stringify({ type: 'join', nickname: nickname.trim() }));
-      setFase('ATTESA');
+      // La fase cambierà in ATTESA al ricevimento di 'join_confirm'
+    } else {
+      setErrore("Connessione al server in corso... riprova tra un istante ⏳");
     }
   };
 
   const inviaRisposta = (opzione) => {
-    if (!socket) return;
-    
-    // Calcoliamo i millisecondi ESATTI in cui è stata data la risposta
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
     const msEsattiRimanenti = endTime ? Math.max(0, endTime - Date.now()) : 0;
     
     socket.send(JSON.stringify({
-      type: 'risposta', canzone_id: domanda.canzone_id,
-      risposta: opzione, ms_rimanenti: msEsattiRimanenti
+      type: 'risposta', 
+      canzone_id: domanda.canzone_id,
+      risposta: opzione, 
+      ms_rimanenti: msEsattiRimanenti
     }));
     setFase('RISPOSTA_DATA');
   };
@@ -153,7 +150,7 @@ function App() {
     return { posizione: mioIndex + 1, punti: classifica[mioIndex].punti };
   };
 
-  // --- SCHERMATE ---
+  // --- RENDERING SCHERMATE ---
   if (fase === 'LOGIN') return (
     <div className="app-container">
       <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="card">
