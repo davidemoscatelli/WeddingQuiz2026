@@ -11,10 +11,13 @@ function App() {
   const [errore, setErrore] = useState('');
   const [socket, setSocket] = useState(null);
   const [domanda, setDomanda] = useState(null);
+  
+  // STATI DEL TIMER AGGIORNATI
   const [timer, setTimer] = useState(60);
+  const [endTime, setEndTime] = useState(null); // NUOVO: Memorizza l'ora esatta di fine
+  
   const [classifica, setClassifica] = useState([]);
   const [giocatoriConnessi, setGiocatoriConnessi] = useState(0);
-  
   const [progresso, setProgresso] = useState({ numero: 0, totale: 0 });
   const [isFinale, setIsFinale] = useState(false);
 
@@ -37,7 +40,6 @@ function App() {
         const data = JSON.parse(event.data);
         const utenteRegistrato = localStorage.getItem('wedding_quiz_nickname');
         
-        // --- LA REGOLA D'ORO ANTI-RITARDATARI ---
         // Se non hai ancora inserito il nome, ignora i comandi della regia!
         if (!utenteRegistrato) {
             return; 
@@ -45,7 +47,12 @@ function App() {
 
         if (data.type === 'prossima_domanda') {
           setDomanda(data);
+          
+          // IMPOSTIAMO LA SCADENZA ESATTA (Ora attuale + 60 secondi)
+          const scadenza = Date.now() + 60000;
+          setEndTime(scadenza);
           setTimer(60);
+          
           setProgresso({ numero: data.numero, totale: data.totale });
           setFase('DOMANDA');
         } else if (data.type === 'classifica_parziale') {
@@ -63,9 +70,11 @@ function App() {
           setGiocatoriConnessi(data.giocatori);
           setFase('PREPARAZIONE');
         } else if (data.type === 'annulla_tutto') {
+          setEndTime(null);
           setFase('ATTESA'); 
         } else if (data.type === 'tutti_hanno_risposto') {
           setTimer(0);
+          setEndTime(null);
           setFase('ATTESA_CLASSIFICA');
         }
       };
@@ -78,14 +87,36 @@ function App() {
     return () => { if (ws) ws.close(); };
   }, []);
 
+  // --- NUOVO USE-EFFECT PER IL TIMER ANTI-BLOCCO ---
   useEffect(() => {
-    if ((fase === 'DOMANDA' || fase === 'RISPOSTA_DATA') && timer > 0) {
-      const interval = setInterval(() => setTimer(prev => prev - 1), 1000);
-      return () => clearInterval(interval);
-    } else if ((fase === 'DOMANDA' || fase === 'RISPOSTA_DATA') && timer <= 0) {
-      setFase('ATTESA_CLASSIFICA');
+    let interval;
+    
+    // Il timer gira solo se siamo in queste due fasi e se esiste un endTime
+    if ((fase === 'DOMANDA' || fase === 'RISPOSTA_DATA') && endTime) {
+      // Usiamo 200ms invece di 1000ms per rendere la barra fluidissima e super reattiva
+      interval = setInterval(() => {
+        const now = Date.now();
+        const msRimanenti = endTime - now;
+        const secondiRimanenti = Math.ceil(msRimanenti / 1000);
+
+        if (msRimanenti > 0) {
+          // Se scende sotto il secondo precedente, aggiorna l'UI
+          if (secondiRimanenti !== timer) {
+            setTimer(secondiRimanenti);
+          }
+        } else {
+          // TEMPO SCADUTO!
+          setTimer(0);
+          setFase('ATTESA_CLASSIFICA');
+          clearInterval(interval);
+        }
+      }, 200); 
     }
-  }, [fase, timer]);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [fase, endTime, timer]);
 
   const handleJoin = (e) => {
     e.preventDefault();
@@ -104,9 +135,13 @@ function App() {
 
   const inviaRisposta = (opzione) => {
     if (!socket) return;
+    
+    // Calcoliamo i millisecondi ESATTI in cui è stata data la risposta
+    const msEsattiRimanenti = endTime ? Math.max(0, endTime - Date.now()) : 0;
+    
     socket.send(JSON.stringify({
       type: 'risposta', canzone_id: domanda.canzone_id,
-      risposta: opzione, ms_rimanenti: timer * 1000
+      risposta: opzione, ms_rimanenti: msEsattiRimanenti
     }));
     setFase('RISPOSTA_DATA');
   };
@@ -164,7 +199,7 @@ function App() {
   if (fase === 'DOMANDA') return (
     <div className="app-container">
       {renderHeaderDomanda()}
-      <div className="timer-bar-bg"><div className="timer-bar-fill" style={{ width: `${(timer/60)*100}%`, transition: 'width 1s linear' }}></div></div>
+      <div className="timer-bar-bg"><div className="timer-bar-fill" style={{ width: `${(timer/60)*100}%`, transition: 'width 0.2s linear' }}></div></div>
       <div style={{fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><Clock size={24} color="#d97706" /> {timer}s</div>
       <h2 style={{marginTop: '1rem'}}>Ascolta la band... <br/> Che canzone è?</h2>
       <div className="opzioni-grid">
@@ -178,7 +213,7 @@ function App() {
   if (fase === 'RISPOSTA_DATA') return (
     <div className="app-container">
       {renderHeaderDomanda()}
-      <div className="timer-bar-bg"><div className="timer-bar-fill" style={{ width: `${(timer/60)*100}%`, transition: 'width 1s linear' }}></div></div>
+      <div className="timer-bar-bg"><div className="timer-bar-fill" style={{ width: `${(timer/60)*100}%`, transition: 'width 0.2s linear' }}></div></div>
       <div style={{fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><Clock size={24} color="#d97706" /> {timer}s</div>
       <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} style={{marginTop: '2rem'}}>
         <Clock size={80} color="#94a3b8" style={{animation: 'pulse 2s infinite', margin: '0 auto'}} />
