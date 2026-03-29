@@ -19,7 +19,6 @@
 
         h1 { font-family: 'Playfair Display', serif; color: #f59e0b; margin-bottom: 5px; }
         
-        /* Badge Utenti Connessi */
         .user-badge {
             background: #1e293b;
             padding: 10px 20px;
@@ -40,6 +39,7 @@
             border-radius: 20px; 
             border: 2px solid #334155; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            position: relative;
         }
 
         .btn { 
@@ -62,16 +62,30 @@
         .btn-prep { background: linear-gradient(45deg, #8e44ad, #9b59b6); }
         .btn-start { background: linear-gradient(45deg, #27ae60, #2ecc71); font-size: 22px; }
         .btn-classifica { background: #f59e0b; color: #000; font-size: 20px; }
-        .btn-finale { background: linear-gradient(45deg, #ef4444, #f97316); font-size: 24px; animation: glow 2s infinite; }
+        .btn-finale { background: linear-gradient(45deg, #ef4444, #f97316); font-size: 24px; }
         
-        .btn-danger { background: transparent; border: 1px solid #475569; color: #94a3b8; font-size: 12px; padding: 10px; margin-top: 50px; }
+        .answers-box { 
+            background: #0f172a; 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin-bottom: 15px; 
+            border: 1px solid #334155;
+            transition: 0.3s;
+        }
+        .all-done { 
+            border-color: #2ecc71; 
+            background: #064e3b;
+            animation: glow-border 1s infinite;
+        }
 
-        #timerContainer { font-size: 80px; font-weight: bold; color: #ef4444; margin: 20px 0; height: 100px; display: none; }
-        
-        .info-next { color: #94a3b8; font-style: italic; margin-bottom: 20px; display: block; }
+        .btn-danger { background: transparent; border: 1px solid #475569; color: #94a3b8; font-size: 12px; padding: 10px; margin-top: 50px; cursor: pointer; border-radius: 8px; }
+
+        #timerContainer { font-size: 80px; font-weight: bold; color: #ef4444; margin: 10px 0; height: 100px; }
+        .info-next { color: #94a3b8; font-style: italic; margin-bottom: 15px; display: block; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        @keyframes glow { 0% { box-shadow: 0 0 5px #ef4444; } 50% { box-shadow: 0 0 20px #ef4444; } 100% { box-shadow: 0 0 5px #ef4444; } }
+        @keyframes glow { 0% { box-shadow: 0 0 5px #2ecc71; } 50% { box-shadow: 0 0 25px #2ecc71; } 100% { box-shadow: 0 0 5px #2ecc71; } }
+        @keyframes glow-border { 0% { box-shadow: inset 0 0 5px #2ecc71; } 50% { box-shadow: inset 0 0 15px #2ecc71; } 100% { box-shadow: inset 0 0 5px #2ecc71; } }
     </style>
 </head>
 <body>
@@ -80,83 +94,110 @@
 
     <div class="user-badge" id="status-badge">
         <span class="dot" id="connection-dot"></span>
-        UTENTI PRONTI: <span id="user-count">0</span>
+        UTENTI ONLINE: <span id="user-count">0</span>
     </div>
 
-    <div id="feedback" style="height: 20px; font-size: 14px; margin-bottom: 10px;"></div>
+    <div id="feedback" style="height: 20px; font-size: 14px; margin-bottom: 10px; font-weight: bold;"></div>
 
     <div class="card">
         
         {% if stato.fase == 'PREPARAZIONE' %}
-            <h3>Pronti a partire?</h3>
-            <p>Assicurati che il numero di utenti sia corretto prima di avvisare tutti.</p>
-            <button class="btn btn-prep" onclick="eseguiComando('vai_a_preparazione')">📣 AVVISA TUTTI: STIAMO PER PARTIRE</button>
-            <button class="btn btn-start" style="font-size: 14px; background: #334155;" onclick="eseguiComando('lancia_canzone')">Salta avviso e vai a Canzone 1</button>
+            <h3>Attesa Ospiti</h3>
+            <p>Controlla il numero di utenti prima di iniziare.</p>
+            <button class="btn btn-prep" onclick="eseguiComando('vai_a_preparazione')">📣 AVVISA: STIAMO PER PARTIRE</button>
+            <button class="btn btn-start" style="font-size: 14px; background: #334155;" onclick="eseguiComando('lancia_canzone')">Salta avviso e vai alla 1</button>
 
+        {% elif stato.fase == 'LANCIO' %}
+            <h3 style="color: #2ecc71;">✅ Allerta Inviata!</h3>
+            <p>Gli ospiti sono pronti.</p>
+            <button class="btn btn-start" onclick="eseguiComando('lancia_canzone')">
+                🎵 LANCIA CANZONE {{ stato.canzone_corrente.ordine_scaletta }}
+            </button>
+            <button class="btn-danger" style="margin-top:10px; width: 100%;" onclick="eseguiComando('reset_quiz')">Torna a inizio</button>
+        
         {% elif stato.fase == 'DOMANDA' %}
+            <div id="answers-widget" class="answers-box">
+                <span style="font-size: 1.1rem; font-weight: 600;">
+                    📝 Risposte: <span id="current-answers">0</span> / <span id="total-players">0</span>
+                </span>
+                <div id="all-done-msg" style="display:none; font-size: 0.9rem; margin-top: 5px; color: #2ecc71; font-weight: bold;">TUTTI HANNO RISPOSTO! 🚀</div>
+            </div>
+
             <span class="info-next">Brano {{ stato.canzone_corrente.ordine_scaletta }} di {{ totale_domande }}</span>
-            <h3>🎧 {{ stato.canzone_corrente.titolo }}</h3>
+            <h3 style="margin: 0;">🎧 {{ stato.canzone_corrente.titolo }}</h3>
             <div id="timerContainer">60</div>
-            <button class="btn btn-classifica" onclick="eseguiComando('mostra_classifica_parziale')">📊 MOSTRA CLASSIFICA</button>
-            <button class="btn btn-danger" style="margin-top: 20px;" onclick="eseguiComando('annulla', '{{ stato.canzone_corrente.id }}')">🛑 ANNULLA ERRORE</button>
+            
+            <button id="btn-classifica" class="btn btn-classifica" onclick="eseguiComando('mostra_classifica_parziale')">📊 MOSTRA CLASSIFICA</button>
+            <button class="btn btn-danger" style="margin-top: 10px; width: 100%;" onclick="eseguiComando('annulla')">🛑 ANNULLA ERRORE</button>
 
         {% elif stato.fase == 'CLASSIFICA' %}
-            <h3>Classifica visualizzata!</h3>
-            <span class="info-next">Prossima: {{ stato.canzone_corrente.titolo }}</span>
-            <button class="btn btn-start" onclick="eseguiComando('lancia_canzone')">▶️ LANCIA PROSSIMA CANZONE</button>
-            <button class="btn btn-classifica" style="background: #334155; color: #fff;" onclick="eseguiComando('mostra_classifica_parziale')">Aggiorna Classifica</button>
+            <h3>Classifica mostrata!</h3>
+            <p>I giocatori stanno guardando i punteggi.</p>
+            <button class="btn btn-start" onclick="eseguiComando('lancia_canzone')">
+                ▶️ LANCIA CANZONE {{ stato.canzone_corrente.ordine_scaletta }}
+            </button>
+            <button class="btn btn-classifica" style="background: #334155; color: #fff; font-size: 14px;" onclick="eseguiComando('mostra_classifica_parziale')">🔄 Aggiorna Classifica</button>
 
         {% elif stato.fase == 'PODIO' %}
             <h2 style="color: #f59e0b;">🔥 QUIZ COMPLETATO!</h2>
-            <p>È il momento della premiazione.</p>
             <button class="btn btn-finale" onclick="eseguiComando('mostra_podio_finale')">🏆 MOSTRA PODIO FINALE</button>
         {% endif %}
 
     </div>
 
-    <button class="btn btn-danger" onclick="if(confirm('Resettare tutto?')) eseguiComando('reset_quiz')">🔄 RESET TOTALE QUIZ</button>
+    <button class="btn-danger" onclick="if(confirm('Resettare tutto il quiz?')) eseguiComando('reset_quiz')">🔄 RESET TOTALE QUIZ</button>
 
     <script>
-        // --- LOGICA WEBSOCKET ---
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const socketUrl = protocol + window.location.host + '/ws/quiz/';
-        const socket = new WebSocket(socketUrl);
+        const socket = new WebSocket(protocol + window.location.host + '/ws/quiz/');
         const connectionDot = document.getElementById('connection-dot');
+        let timerInterval; // Variabile globale per gestire il timer
 
-        socket.onopen = function() {
-            console.log("✅ Connesso al server delle notifiche.");
-            connectionDot.classList.remove('offline');
-        };
-
-        socket.onmessage = function(e) {
+        socket.onopen = () => connectionDot.classList.remove('offline');
+        
+        socket.onmessage = (e) => {
             const data = JSON.parse(e.data);
-            console.log("📩 Messaggio ricevuto:", data);
             
             if (data.type === 'aggiornamento_utenti') {
                 document.getElementById('user-count').innerText = data.totale;
             }
+            
+            if (data.type === 'progresso_risposte') {
+                const cur = document.getElementById('current-answers');
+                const tot = document.getElementById('total-players');
+                if (cur) cur.innerText = data.risposte;
+                if (tot) tot.innerText = data.totale;
+            }
+
+            if (data.type === 'tutti_hanno_risposto') {
+                const widget = document.getElementById('answers-widget');
+                const timerDisplay = document.getElementById('timerContainer');
+                const btn = document.getElementById('btn-classifica');
+
+                if (widget) widget.classList.add('all-done');
+                if (timerDisplay) { 
+                    clearInterval(timerInterval); // Fermiamo il countdown
+                    timerDisplay.innerText = "FINE!"; 
+                    timerDisplay.style.color = "#2ecc71"; 
+                }
+                const msg = document.getElementById('all-done-msg');
+                if (msg) msg.style.display = 'block';
+                if (btn) btn.style.animation = 'glow 1s infinite';
+            }
         };
 
-        socket.onclose = function() {
-            console.log("❌ Connessione persa. Riprovo tra 3 secondi...");
+        socket.onclose = () => {
             connectionDot.classList.add('offline');
             setTimeout(() => window.location.reload(), 3000);
         };
 
-        socket.onerror = function(err) {
-            console.error("⚠️ Errore WebSocket:", err);
-        };
-
-        // --- GESTIONE COMANDI ---
-        let interval;
-        async function eseguiComando(azione, canzoneId = null) {
+        async function eseguiComando(azione) {
             const feedback = document.getElementById('feedback');
             const formData = new FormData(); 
             formData.append('azione', azione);
-            if (canzoneId) formData.append('canzone_id', canzoneId);
             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
-            feedback.innerText = "Invio...";
+            feedback.innerText = "Invio comando...";
             feedback.style.color = "#f59e0b";
 
             try {
@@ -164,39 +205,32 @@
                 if (response.ok) { 
                     feedback.innerText = "Eseguito! ✔️";
                     feedback.style.color = "#2ecc71";
-                    // Ricarichiamo per aggiornare lo stato dei bottoni
-                    setTimeout(() => window.location.reload(), 500);
-                } else {
-                    feedback.innerText = "Errore server!";
-                    feedback.style.color = "#ef4444";
+                    setTimeout(() => window.location.reload(), 300);
                 }
             } catch (error) { 
-                alert("Errore di rete!"); 
+                feedback.innerText = "Errore di rete!"; 
+                feedback.style.color = "#ef4444";
             }
         }
 
-        // Timer se siamo in fase DOMANDA
+        // Countdown Logico
         {% if stato.fase == 'DOMANDA' %}
-            startLocalTimer(60);
+            (function() {
+                let timeLeft = 60;
+                const display = document.getElementById('timerContainer');
+                if(!display) return;
+                display.style.display = 'block';
+                
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    display.innerText = timeLeft;
+                    if (timeLeft <= 0) { 
+                        clearInterval(timerInterval); 
+                        display.innerText = "STOP!";
+                    }
+                }, 1000);
+            })();
         {% endif %}
-
-        function startLocalTimer(seconds) {
-            const display = document.getElementById('timerContainer');
-            if(!display) return;
-            display.style.display = 'block';
-            let timeLeft = seconds;
-            display.innerText = timeLeft;
-            if (interval) clearInterval(interval);
-            interval = setInterval(() => { 
-                timeLeft--; 
-                display.innerText = timeLeft;
-                if (timeLeft <= 0) { 
-                    clearInterval(interval); 
-                    display.innerText = "STOP!"; 
-                    display.style.color = "#f59e0b"; 
-                }
-            }, 1000);
-        }
     </script>
 </body>
 </html>

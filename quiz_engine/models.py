@@ -37,6 +37,7 @@ class RispostaData(models.Model):
 class StatoQuiz(models.Model):
     FASI = [
         ('PREPARAZIONE', 'Schermata Iniziale'),
+        ('LANCIO', 'Messaggio preparatevi inviato'),
         ('DOMANDA', 'Canzone in corso'),
         ('CLASSIFICA', 'Classifica della canzone'),
         ('PODIO', 'Podio Finale'),
