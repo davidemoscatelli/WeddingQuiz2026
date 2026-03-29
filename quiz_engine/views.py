@@ -2,6 +2,8 @@ from django.shortcuts import render
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import Canzone, Giocatore, RispostaData
+from django.contrib.auth.decorators import login_required
+
 
 @login_required
 def telecomando(request):
