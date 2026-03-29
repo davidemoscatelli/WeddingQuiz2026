@@ -142,3 +142,11 @@ CHANNEL_LAYERS = {
 
 
 ASGI_APPLICATION = 'wedding_backend.asgi.application'
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://wedding-quiz-2026.onrender.com",
+    "https://*.onrender.com" # Questo copre eventuali sottodomini
+]
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
