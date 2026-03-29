@@ -3,42 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Regia Wedding Quiz</title>
+    <title>Regia Sequenziale - Wedding Quiz</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap');
-        body { font-family: 'Poppins', sans-serif; text-align: center; background: #0f172a; color: #f1f5f9; padding: 10px 20px; }
-        h1, h3 { font-family: 'Playfair Display', serif; color: #f59e0b; margin-bottom: 5px;}
-        .card { background: #1e293b; margin: 15px auto; padding: 20px; border-radius: 15px; border: 2px solid #334155; }
-        .btn { display: block; width: 100%; padding: 15px; margin: 8px 0; font-size: 16px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; color: white; transition: 0.2s; text-transform: uppercase; }
-        .btn:active { transform: scale(0.96); }
-        .btn-start { background: linear-gradient(45deg, #27ae60, #2ecc71); }
-        .btn-stop { background: #e74c3c; font-size: 14px; }
-        .btn-prep { background: linear-gradient(45deg, #8e44ad, #9b59b6); margin-bottom: 20px; font-size: 18px;}
-        .btn-classifica { background: #34495e; color: #fff; margin-top: 20px;}
-        .btn-finale { background: linear-gradient(45deg, #f59e0b, #fcd34d); color: #000; font-size: 20px; box-shadow: 0 4px #b45309; margin-top: 10px;}
-        #timerContainer { font-size: 70px; font-weight: bold; color: #ef4444; margin: 10px 0; display: none; height: 90px; }
-        .feedback-toast { color: #2ecc71; font-weight: bold; height: 25px; margin-bottom: 10px; }
+        
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            text-align: center; 
+            background: #0f172a; 
+            color: #f1f5f9; 
+            padding: 20px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+
+        h1 { font-family: 'Playfair Display', serif; color: #f59e0b; margin-bottom: 5px; }
+        
+        /* Badge Utenti Connessi */
+        .user-badge {
+            background: #1e293b;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid #f59e0b;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .dot { height: 10px; width: 10px; background-color: #2ecc71; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+        .dot.offline { background-color: #ef4444; animation: none; }
+
+        .card { 
+            background: #1e293b; 
+            padding: 30px; 
+            border-radius: 20px; 
+            border: 2px solid #334155; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .btn { 
+            display: block; 
+            width: 100%; 
+            padding: 20px; 
+            margin: 15px 0; 
+            font-size: 18px; 
+            font-weight: bold; 
+            border: none; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            color: white; 
+            transition: 0.2s; 
+            text-transform: uppercase; 
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+        }
+        .btn:active { transform: translateY(3px); box-shadow: none; }
+
+        .btn-prep { background: linear-gradient(45deg, #8e44ad, #9b59b6); }
+        .btn-start { background: linear-gradient(45deg, #27ae60, #2ecc71); font-size: 22px; }
+        .btn-classifica { background: #f59e0b; color: #000; font-size: 20px; }
+        .btn-finale { background: linear-gradient(45deg, #ef4444, #f97316); font-size: 24px; animation: glow 2s infinite; }
+        
+        .btn-danger { background: transparent; border: 1px solid #475569; color: #94a3b8; font-size: 12px; padding: 10px; margin-top: 50px; }
+
+        #timerContainer { font-size: 80px; font-weight: bold; color: #ef4444; margin: 20px 0; height: 100px; display: none; }
+        
+        .info-next { color: #94a3b8; font-style: italic; margin-bottom: 20px; display: block; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        @keyframes glow { 0% { box-shadow: 0 0 5px #ef4444; } 50% { box-shadow: 0 0 20px #ef4444; } 100% { box-shadow: 0 0 5px #ef4444; } }
     </style>
 </head>
 <body>
 
-    <h1>🎙️ REGIA FESTA</h1>
-    <button class="btn btn-prep" onclick="eseguiComando('preparatevi')">📣 AVVISA TUTTI: STIAMO PER PARTIRE</button>
-    <div id="timerContainer">60</div>
-    <div id="feedback" class="feedback-toast"></div>
+    <h1>🎙️ REGIA WEDDING</h1>
 
-    {% for canzone in canzoni %}
-    <div class="card">
-        <h3>{{ canzone.ordine_scaletta }}. {{ canzone.titolo }}</h3>
-        <button class="btn btn-start" onclick="eseguiComando('start_canzone', '{{ canzone.id }}')">▶️ LANCIA CANZONE</button>
-        <button class="btn btn-stop" onclick="eseguiComando('annulla', '{{ canzone.id }}')">🛑 ANNULLA ERRORE</button>
+    <div class="user-badge" id="status-badge">
+        <span class="dot" id="connection-dot"></span>
+        UTENTI PRONTI: <span id="user-count">0</span>
     </div>
-    {% endfor %}
 
-    <button class="btn btn-classifica" onclick="eseguiComando('mostra_classifica')">📊 MOSTRA TOP 3 (PARZIALE)</button>
-    <button class="btn btn-finale" onclick="eseguiComando('mostra_classifica_finale')">🏆 PODIO FINALE ASSOLUTO</button>
+    <div id="feedback" style="height: 20px; font-size: 14px; margin-bottom: 10px;"></div>
+
+    <div class="card">
+        
+        {% if stato.fase == 'PREPARAZIONE' %}
+            <h3>Pronti a partire?</h3>
+            <p>Assicurati che il numero di utenti sia corretto prima di avvisare tutti.</p>
+            <button class="btn btn-prep" onclick="eseguiComando('vai_a_preparazione')">📣 AVVISA TUTTI: STIAMO PER PARTIRE</button>
+            <button class="btn btn-start" style="font-size: 14px; background: #334155;" onclick="eseguiComando('lancia_canzone')">Salta avviso e vai a Canzone 1</button>
+
+        {% elif stato.fase == 'DOMANDA' %}
+            <span class="info-next">Brano {{ stato.canzone_corrente.ordine_scaletta }} di {{ totale_domande }}</span>
+            <h3>🎧 {{ stato.canzone_corrente.titolo }}</h3>
+            <div id="timerContainer">60</div>
+            <button class="btn btn-classifica" onclick="eseguiComando('mostra_classifica_parziale')">📊 MOSTRA CLASSIFICA</button>
+            <button class="btn btn-danger" style="margin-top: 20px;" onclick="eseguiComando('annulla', '{{ stato.canzone_corrente.id }}')">🛑 ANNULLA ERRORE</button>
+
+        {% elif stato.fase == 'CLASSIFICA' %}
+            <h3>Classifica visualizzata!</h3>
+            <span class="info-next">Prossima: {{ stato.canzone_corrente.titolo }}</span>
+            <button class="btn btn-start" onclick="eseguiComando('lancia_canzone')">▶️ LANCIA PROSSIMA CANZONE</button>
+            <button class="btn btn-classifica" style="background: #334155; color: #fff;" onclick="eseguiComando('mostra_classifica_parziale')">Aggiorna Classifica</button>
+
+        {% elif stato.fase == 'PODIO' %}
+            <h2 style="color: #f59e0b;">🔥 QUIZ COMPLETATO!</h2>
+            <p>È il momento della premiazione.</p>
+            <button class="btn btn-finale" onclick="eseguiComando('mostra_podio_finale')">🏆 MOSTRA PODIO FINALE</button>
+        {% endif %}
+
+    </div>
+
+    <button class="btn btn-danger" onclick="if(confirm('Resettare tutto?')) eseguiComando('reset_quiz')">🔄 RESET TOTALE QUIZ</button>
 
     <script>
+        // --- LOGICA WEBSOCKET ---
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const socketUrl = protocol + window.location.host + '/ws/quiz/';
+        const socket = new WebSocket(socketUrl);
+        const connectionDot = document.getElementById('connection-dot');
+
+        socket.onopen = function() {
+            console.log("✅ Connesso al server delle notifiche.");
+            connectionDot.classList.remove('offline');
+        };
+
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            console.log("📩 Messaggio ricevuto:", data);
+            
+            if (data.type === 'aggiornamento_utenti') {
+                document.getElementById('user-count').innerText = data.totale;
+            }
+        };
+
+        socket.onclose = function() {
+            console.log("❌ Connessione persa. Riprovo tra 3 secondi...");
+            connectionDot.classList.add('offline');
+            setTimeout(() => window.location.reload(), 3000);
+        };
+
+        socket.onerror = function(err) {
+            console.error("⚠️ Errore WebSocket:", err);
+        };
+
+        // --- GESTIONE COMANDI ---
         let interval;
         async function eseguiComando(azione, canzoneId = null) {
             const feedback = document.getElementById('feedback');
@@ -47,26 +156,45 @@
             if (canzoneId) formData.append('canzone_id', canzoneId);
             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
-            feedback.innerText = "Invio in corso..."; feedback.style.color = "#f1f5f9";
+            feedback.innerText = "Invio...";
+            feedback.style.color = "#f59e0b";
+
             try {
                 const response = await fetch('', { method: 'POST', body: formData });
                 if (response.ok) { 
-                    feedback.innerText = "Comando ricevuto! ✔️"; feedback.style.color = "#2ecc71"; 
-                    setTimeout(() => feedback.innerText = "", 2000);
-                    if (azione === 'start_canzone') { startLocalTimer(60); }
-                    else if (azione === 'annulla') { clearInterval(interval); document.getElementById('timerContainer').style.display = 'none'; }
+                    feedback.innerText = "Eseguito! ✔️";
+                    feedback.style.color = "#2ecc71";
+                    // Ricarichiamo per aggiornare lo stato dei bottoni
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    feedback.innerText = "Errore server!";
+                    feedback.style.color = "#ef4444";
                 }
-            } catch (error) { alert("Errore di connessione con il server!"); }
+            } catch (error) { 
+                alert("Errore di rete!"); 
+            }
         }
+
+        // Timer se siamo in fase DOMANDA
+        {% if stato.fase == 'DOMANDA' %}
+            startLocalTimer(60);
+        {% endif %}
 
         function startLocalTimer(seconds) {
             const display = document.getElementById('timerContainer');
-            display.style.display = 'block'; display.style.color = '#ef4444';
-            let timeLeft = seconds; display.innerText = timeLeft;
+            if(!display) return;
+            display.style.display = 'block';
+            let timeLeft = seconds;
+            display.innerText = timeLeft;
             if (interval) clearInterval(interval);
             interval = setInterval(() => { 
-                timeLeft--; display.innerText = timeLeft;
-                if (timeLeft <= 0) { clearInterval(interval); display.innerText = "SFUMARE! 🎉"; display.style.color = "#f59e0b"; }
+                timeLeft--; 
+                display.innerText = timeLeft;
+                if (timeLeft <= 0) { 
+                    clearInterval(interval); 
+                    display.innerText = "STOP!"; 
+                    display.style.color = "#f59e0b"; 
+                }
             }, 1000);
         }
     </script>

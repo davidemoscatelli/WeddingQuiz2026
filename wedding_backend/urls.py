@@ -5,8 +5,8 @@ from django.contrib.auth import views as auth_views # Importiamo la nostra vista
 
 urlpatterns = [
     path('admin/', admin.site.urls), # Questo è l'admin classico (per inserire le canzoni prima del matrimonio)
-    path('', views.telecomando, name='telecomando'), # Questo è il tuo telecomando da smartphone!
+    path('', views.telecomando, name='regia'), # Questo è il tuo telecomando da smartphone!
     path('accounts/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
-    
+
 ]
