@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap');
+
+:root {
+  /* Palette Matrimonio Light & Minimal */
+  --bg-color: #f8fafc; /* Un bianco leggermente ghiacciato, non acceca */
+  --card-bg: #ffffff; /* Bianco puro per i riquadri */
+  --text-main: #1e293b; /* Grigio scuro/Navy per leggerezza perfetta */
+  --gold: #d97706; /* Oro scuro per risaltare sul bianco */
+  --border-color: #e2e8f0;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-height: 100vh;
+  justify-content: center;
+}
+
+h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; color: var(--gold); }
+
+.app-container { width: 100%; max-width: 500px; padding: 2rem; text-align: center; box-sizing: border-box; }
+
+.card { 
+  background: var(--card-bg); 
+  padding: 2.5rem; 
+  border-radius: 2rem; 
+  border: 1px solid var(--border-color); 
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+}
+
+input { 
+  width: 90%; padding: 1.2rem; margin: 1.5rem 0; border-radius: 1rem; 
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9; color: var(--text-main); font-size: 1.1rem; text-align: center;
+}
+input:focus { border-color: var(--gold); outline: none; background: #ffffff; }
+
+/* Bottoni principali (Es. Inizia) */
+button {
+  background: var(--text-main); color: #ffffff; border: none; padding: 1.2rem 2rem;
+  border-radius: 1rem; font-weight: bold; cursor: pointer; width: 100%; margin: 0.5rem 0;
+  font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s;
+  box-shadow: 0 4px 0 #0f172a;
+}
+button:active { transform: translateY(3px); box-shadow: 0 1px 0 #0f172a; }
+
+/* Bottoni per le opzioni delle canzoni */
+.opzioni-grid { display: grid; grid-template-columns: 1fr; gap: 1.2rem; margin-top: 2.5rem; }
+.opzioni-grid button { 
+  background: var(--card-bg); 
+  border: 2px solid var(--text-main); 
+  color: var(--text-main); 
+  box-shadow: none; 
+  text-transform: none; 
+  font-size: 1.2rem; 
+  font-weight: 600; 
+}
+.opzioni-grid button:active { background: var(--text-main); color: #ffffff; }
+
+.timer-bar-bg { width: 100%; height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 1.5rem; }
+.timer-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, var(--gold)); }
+
+.classifica-list { margin-top: 2.5rem; }
+.rank-item { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem; margin: 0.8rem 0; border-radius: 1rem; font-size: 1.1rem; }
+.rank-1 { background: #fef3c7; border: 2px solid var(--gold); color: #000; font-weight: bold; font-size: 1.3rem; }
+.rank-2 { background: #f1f5f9; border: 1px solid #94a3b8; color: #000; font-weight: 600; }
+.rank-3 { background: #ffedd5; border: 1px solid #fdba74; color: #000; font-weight: 600; }
+.rank-points { font-size: 0.9em; opacity: 0.9; }
+
+/* Animazione Caricamento */
+.loader-wedding { font-size: 40px; animation: heartBeat 1.5s infinite; }
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.1); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.1); }
+  70% { transform: scale(1); }
+}

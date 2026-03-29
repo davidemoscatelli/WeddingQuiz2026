@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regia Wedding Quiz</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap');
+        body { font-family: 'Poppins', sans-serif; text-align: center; background: #0f172a; color: #f1f5f9; padding: 10px 20px; }
+        h1, h3 { font-family: 'Playfair Display', serif; color: #f59e0b; margin-bottom: 5px;}
+        .card { background: #1e293b; margin: 15px auto; padding: 20px; border-radius: 15px; border: 2px solid #334155; }
+        .btn { display: block; width: 100%; padding: 15px; margin: 8px 0; font-size: 16px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; color: white; transition: 0.2s; text-transform: uppercase; }
+        .btn:active { transform: scale(0.96); }
+        .btn-start { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+        .btn-stop { background: #e74c3c; font-size: 14px; }
+        .btn-prep { background: linear-gradient(45deg, #8e44ad, #9b59b6); margin-bottom: 20px; font-size: 18px;}
+        .btn-classifica { background: #34495e; color: #fff; margin-top: 20px;}
+        .btn-finale { background: linear-gradient(45deg, #f59e0b, #fcd34d); color: #000; font-size: 20px; box-shadow: 0 4px #b45309; margin-top: 10px;}
+        #timerContainer { font-size: 70px; font-weight: bold; color: #ef4444; margin: 10px 0; display: none; height: 90px; }
+        .feedback-toast { color: #2ecc71; font-weight: bold; height: 25px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>🎙️ REGIA FESTA</h1>
+    <button class="btn btn-prep" onclick="eseguiComando('preparatevi')">📣 AVVISA TUTTI: STIAMO PER PARTIRE</button>
+    <div id="timerContainer">60</div>
+    <div id="feedback" class="feedback-toast"></div>
+
+    {% for canzone in canzoni %}
+    <div class="card">
+        <h3>{{ canzone.ordine_scaletta }}. {{ canzone.titolo }}</h3>
+        <button class="btn btn-start" onclick="eseguiComando('start_canzone', '{{ canzone.id }}')">▶️ LANCIA CANZONE</button>
+        <button class="btn btn-stop" onclick="eseguiComando('annulla', '{{ canzone.id }}')">🛑 ANNULLA ERRORE</button>
+    </div>
+    {% endfor %}
+
+    <button class="btn btn-classifica" onclick="eseguiComando('mostra_classifica')">📊 MOSTRA TOP 3 (PARZIALE)</button>
+    <button class="btn btn-finale" onclick="eseguiComando('mostra_classifica_finale')">🏆 PODIO FINALE ASSOLUTO</button>
+
+    <script>
+        let interval;
+        async function eseguiComando(azione, canzoneId = null) {
+            const feedback = document.getElementById('feedback');
+            const formData = new FormData(); 
+            formData.append('azione', azione);
+            if (canzoneId) formData.append('canzone_id', canzoneId);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            feedback.innerText = "Invio in corso..."; feedback.style.color = "#f1f5f9";
+            try {
+                const response = await fetch('', { method: 'POST', body: formData });
+                if (response.ok) { 
+                    feedback.innerText = "Comando ricevuto! ✔️"; feedback.style.color = "#2ecc71"; 
+                    setTimeout(() => feedback.innerText = "", 2000);
+                    if (azione === 'start_canzone') { startLocalTimer(60); }
+                    else if (azione === 'annulla') { clearInterval(interval); document.getElementById('timerContainer').style.display = 'none'; }
+                }
+            } catch (error) { alert("Errore di connessione con il server!"); }
+        }
+
+        function startLocalTimer(seconds) {
+            const display = document.getElementById('timerContainer');
+            display.style.display = 'block'; display.style.color = '#ef4444';
+            let timeLeft = seconds; display.innerText = timeLeft;
+            if (interval) clearInterval(interval);
+            interval = setInterval(() => { 
+                timeLeft--; display.innerText = timeLeft;
+                if (timeLeft <= 0) { clearInterval(interval); display.innerText = "SFUMARE! 🎉"; display.style.color = "#f59e0b"; }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
