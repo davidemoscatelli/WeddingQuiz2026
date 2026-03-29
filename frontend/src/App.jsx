@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Clock, PartyPopper, AlertCircle, Music, Medal } from 'lucide-react';
+import { Trophy, Clock, PartyPopper, AlertCircle, Music, Medal, UserCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-// 1. Definiamo l'URL una sola volta fuori dal componente.
-// Vite caricherà la variabile da Render, altrimenti userà il fallback locale.
+// Configurazione WebSocket
 const SOCKET_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws/quiz/";
 
 function App() {
   const [fase, setFase] = useState('LOGIN'); 
   const [nickname, setNickname] = useState('');
   const [errore, setErrore] = useState('');
-  const [socket, setSocket] = useState(null); // Qui salviamo la connessione attiva
+  const [socket, setSocket] = useState(null);
   const [domanda, setDomanda] = useState(null);
   const [timer, setTimer] = useState(60);
   const [endTime, setEndTime] = useState(null); 
@@ -20,18 +19,21 @@ function App() {
   const [progresso, setProgresso] = useState({ numero: 0, totale: 0 });
   const [isFinale, setIsFinale] = useState(false);
 
+  // Imposta il nome del gioco nella scheda del browser
+  useEffect(() => {
+    document.title = "Wedding Soundtrack Challenge 🎵";
+  }, []);
+
   useEffect(() => {
     let ws;
 
     const connectWebSocket = () => {
-      // Usiamo SOCKET_URL definito sopra
       ws = new WebSocket(SOCKET_URL);
       
       ws.onopen = () => {
-        console.log("Connesso al server WebSocket");
+        console.log("Connesso alla regia del gioco");
         setSocket(ws);
         
-        // Se l'utente era già loggato (refresh pagina), rientriamo automaticamente
         const nomeSalvato = localStorage.getItem('wedding_quiz_nickname');
         if (nomeSalvato) {
           setNickname(nomeSalvato);
@@ -43,7 +45,6 @@ function App() {
         const data = JSON.parse(event.data);
         const utenteRegistrato = localStorage.getItem('wedding_quiz_nickname');
         
-        // Se non siamo registrati, accettiamo solo la conferma del join
         if (!utenteRegistrato && data.type !== 'join_confirm') return;
 
         if (data.type === 'join_confirm') {
@@ -79,21 +80,17 @@ function App() {
       };
 
       ws.onclose = () => {
-        console.log("Connessione persa. Tentativo di riconnessione...");
         setSocket(null);
         setTimeout(connectWebSocket, 2000);
       };
 
-      ws.onerror = (err) => {
-        console.error("Errore WebSocket:", err);
-      };
+      ws.onerror = (err) => console.error("Errore di connessione:", err);
     };
 
     connectWebSocket();
     return () => { if (ws) ws.close(); };
   }, []);
 
-  // Timer anti-blocco
   useEffect(() => {
     let interval;
     if ((fase === 'DOMANDA' || fase === 'RISPOSTA_DATA') && endTime) {
@@ -103,9 +100,7 @@ function App() {
         const secondiRimanenti = Math.ceil(msRimanenti / 1000);
 
         if (msRimanenti > 0) {
-          if (secondiRimanenti !== timer) {
-            setTimer(secondiRimanenti);
-          }
+          if (secondiRimanenti !== timer) setTimer(secondiRimanenti);
         } else {
           setTimer(0);
           setFase('ATTESA_CLASSIFICA');
@@ -118,16 +113,15 @@ function App() {
 
   const handleJoin = (e) => {
     e.preventDefault();
-    if (!nickname.trim()) { setErrore("Ehi! Non hai inserito il nome! 😅"); return; }
-    if (nickname.trim().length < 2) { setErrore("Troppo corto, non fare il timido! 🕵️‍♂️"); return; }
+    if (!nickname.trim()) { setErrore("Scegli un nome per farti riconoscere! 😅"); return; }
+    if (nickname.trim().length < 2) { setErrore("Nome troppo corto! 🕵️‍♂️"); return; }
     
     if (socket && socket.readyState === WebSocket.OPEN) {
       setErrore('');
       localStorage.setItem('wedding_quiz_nickname', nickname.trim());
       socket.send(JSON.stringify({ type: 'join', nickname: nickname.trim() }));
-      // La fase cambierà in ATTESA al ricevimento di 'join_confirm'
     } else {
-      setErrore("Connessione al server in corso... riprova tra un istante ⏳");
+      setErrore("Connessione in corso... riprova tra un istante ⏳");
     }
   };
 
@@ -150,22 +144,38 @@ function App() {
     return { posizione: mioIndex + 1, punti: classifica[mioIndex].punti };
   };
 
-  // --- RENDERING SCHERMATE ---
+  // --- SCHERMATA LOGIN / REGISTRAZIONE ---
   if (fase === 'LOGIN') return (
     <div className="app-container">
       <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="card">
         <PartyPopper size={64} color="#d97706" style={{marginBottom: '1rem'}} />
         <h1 style={{fontSize: '2.5rem', marginBottom: '0'}}>Wedding</h1>
         <h1 style={{fontSize: '1.8rem', marginTop: 0}}>Soundtrack Challenge</h1>
-        <form onSubmit={handleJoin}>
-          <input type="text" placeholder="Es. Il Testimone" value={nickname} onChange={(e) => { setNickname(e.target.value); setErrore(''); }} maxLength={20} />
-          {errore && <p style={{ color: '#ef4444', fontWeight: 'bold' }}>{errore}</p>}
-          <button type="submit">INIZIA A FESTEGGIARE!</button>
+        
+        <div style={{ margin: '1.5rem 0', color: '#475569', fontSize: '1rem', lineHeight: '1.4' }}>
+          <p>Inserisci il tuo <strong>nome</strong>, un <strong>soprannome</strong> o un <strong>nome di fantasia</strong> per partecipare alla sfida!</p>
+        </div>
+
+        <form onSubmit={handleJoin} style={{ width: '100%' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <UserCircle size={20} color="#94a3b8" style={{ position: 'absolute', left: '12px' }} />
+            <input 
+              type="text" 
+              placeholder="Es. Mario, La Sposa, Il Testimone..." 
+              value={nickname} 
+              onChange={(e) => { setNickname(e.target.value); setErrore(''); }} 
+              maxLength={20} 
+              style={{ paddingLeft: '40px' }}
+            />
+          </div>
+          {errore && <p style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '10px' }}>{errore}</p>}
+          <button type="submit" style={{ marginTop: '1.5rem' }}>INIZIA A FESTEGGIARE!</button>
         </form>
       </motion.div>
     </div>
   );
 
+  // --- SCHERMATA ATTESA ---
   if (fase === 'ATTESA') return (
     <div className="app-container">
       <div className="loader-wedding">❤️</div>
@@ -174,6 +184,7 @@ function App() {
     </div>
   );
 
+  // --- SCHERMATA PREPARAZIONE ---
   if (fase === 'PREPARAZIONE') return (
     <div className="app-container">
       <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 1.5 }}>
@@ -194,6 +205,7 @@ function App() {
     </div>
   );
 
+  // --- SCHERMATA DOMANDA ---
   if (fase === 'DOMANDA') return (
     <div className="app-container">
       {renderHeaderDomanda()}
@@ -208,6 +220,7 @@ function App() {
     </div>
   );
 
+  // --- SCHERMATA RISPOSTA DATA ---
   if (fase === 'RISPOSTA_DATA') return (
     <div className="app-container">
       {renderHeaderDomanda()}
@@ -221,6 +234,7 @@ function App() {
     </div>
   );
 
+  // --- SCHERMATA ATTESA CLASSIFICA ---
   if (fase === 'ATTESA_CLASSIFICA') return (
     <div className="app-container">
       <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
@@ -232,6 +246,7 @@ function App() {
     </div>
   );
 
+  // --- SCHERMATA PODIO / CLASSIFICA ---
   if (fase === 'PODIO') {
     const top3 = classifica.slice(0, 3);
     const mieStats = getMieStats();
