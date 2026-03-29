@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Trophy, Clock, PartyPopper, AlertCircle, Music, Medal } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const WS_URL = "ws://localhost:8000/ws/quiz/"; 
+const socketUrl = import.meta.env.VITE_WS_URL || "wss://wedding-quiz-2026.onrender.com/ws/quiz/";
+const socket = new WebSocket(socketUrl);
 
 function App() {
   const [fase, setFase] = useState('LOGIN'); 
